@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  forja:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: forja:latest
+    container_name: forja
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      DB_HOST: ${DB_HOST:-host.docker.internal}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-finewebstudio}
+      DB_USER: ${DB_USER:-directus}
+      DB_PASS: ${DB_PASS:-sDyErcV9zlysnMOAo3iU1F73}
+      OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-4}
+      MIN_EDU_SCORE: ${MIN_EDU_SCORE:-4.5}
+      BATCH_SIZE: ${BATCH_SIZE:-100}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      PORT: 3001
+    depends_on:
+      redis:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  redis:
+    image: redis:7-alpine
+    container_name: forja-redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - redis_data:/data
+
+volumes:
+  redis_data:
