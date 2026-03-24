@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { exec } from 'child_process';
 import { DirectusService } from '../directus/directus.service';
 import { OllamaService, OllamaCircuitOpenError } from '../ollama/ollama.service';
+import { ArticlesService } from '../articles/articles.service';
 
 @Processor('documents')
 export class DocumentProcessor {
@@ -14,6 +15,7 @@ export class DocumentProcessor {
     private readonly directusService: DirectusService,
     private readonly ollamaService: OllamaService,
     private readonly configService: ConfigService,
+    private readonly articlesService: ArticlesService,
   ) {}
 
   private notify(message: string): void {
@@ -25,8 +27,14 @@ export class DocumentProcessor {
   }
 
   @Process({ name: 'process-document', concurrency: 1 })
-  async handleDocument(job: Job<{ documentId: number; url: string; eduScore: number }>): Promise<void> {
-    const { documentId } = job.data;
+  async handleDocument(job: Job<{
+    documentId: number;
+    url: string;
+    edu_score: number;
+    token_count: number;
+    dump: string;
+  }>): Promise<void> {
+    const { documentId, url, edu_score, token_count, dump } = job.data;
     this.logger.log(`Processing document ${documentId} (attempt ${job.attemptsMade + 1})`);
 
     let articleId: number | null = null;
@@ -64,19 +72,25 @@ export class DocumentProcessor {
       // Call Ollama
       const result = await this.ollamaService.generate(content);
 
-      // Save article
+      // Update article to done and save full schema with source metadata
       await this.directusService.updateArticleStatus(articleId, 'done');
-      await this.directusService.createArticle({
-        document_id: documentId,
-        title: result.title,
-        summary: result.summary,
-        key_points: result.key_points,
-        topic: result.topic,
-        edu_level: result.edu_level,
-        quality_score: result.quality_score,
-        model_used: this.configService.get<string>('ollama.model'),
-        status: 'done',
-        processed_at: new Date().toISOString(),
+      await this.articlesService.createArticle({
+        documentId,
+        ollamaResult: {
+          title: result.title,
+          summary: result.summary,
+          key_points: result.key_points,
+          topic: result.topic,
+          edu_level: result.edu_level,
+          quality_score: result.quality_score,
+        },
+        document: {
+          url: url || '',
+          edu_score: edu_score || 0,
+          token_count: token_count || 0,
+          dump: dump || '',
+        },
+        modelUsed: this.configService.get<string>('ollama.model'),
       });
 
       this.logger.log(`Document ${documentId} processed successfully`);

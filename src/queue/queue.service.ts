@@ -115,7 +115,7 @@ export class QueueService implements OnModuleDestroy {
 
         await this.documentQueue.add(
           'process-document',
-          { documentId: doc.id, url: doc.url, eduScore: doc.edu_score },
+          { documentId: doc.id, url: doc.url, edu_score: doc.edu_score, token_count: doc.token_count, dump: doc.dump },
           {
             attempts: 3,
             backoff: { type: 'exponential', delay: 1000 },

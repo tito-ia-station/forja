@@ -27,7 +27,7 @@ export class DirectusService {
           filter: { edu_score: { _gte: minScore } },
           limit,
           offset,
-          fields: ['id', 'url', 'edu_score', 'title'],
+          fields: ['id', 'url', 'edu_score', 'token_count', 'dump', 'title'],
         }),
       );
       return items;
@@ -92,6 +92,16 @@ export class DirectusService {
       return article;
     } catch (error) {
       this.logger.error(`Error creating article: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async createItem(collection: string, data: Record<string, any>): Promise<any> {
+    try {
+      const result = await this.client.request((createItem as any)(collection, data));
+      return result;
+    } catch (error) {
+      this.logger.error(`Error creating item in ${collection}: ${error.message}`);
       throw error;
     }
   }

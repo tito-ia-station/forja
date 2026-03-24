@@ -7,5 +7,6 @@ import { DirectusModule } from '../directus/directus.module';
   imports: [DirectusModule],
   providers: [ArticlesService],
   controllers: [ArticlesController],
+  exports: [ArticlesService],
 })
 export class ArticlesModule {}

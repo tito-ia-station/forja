@@ -4,6 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { DocumentProcessor } from './processor.processor';
 import { DirectusModule } from '../directus/directus.module';
 import { OllamaModule } from '../ollama/ollama.module';
+import { ArticlesModule } from '../articles/articles.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { OllamaModule } from '../ollama/ollama.module';
     BullModule.registerQueue({ name: 'documents' }),
     DirectusModule,
     OllamaModule,
+    ArticlesModule,
   ],
   providers: [DocumentProcessor],
 })
