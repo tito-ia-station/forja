@@ -63,15 +63,25 @@ Responde ÚNICAMENTE con JSON válido sin texto adicional:
 }`;
 
     try {
+      this.logger.log(`🤖 Prompt enviado (${content.length} chars) | model: ${model}`);
+      const startTime = Date.now();
+
       const response = await axios.post(
         `${url}/api/generate`,
         { model, prompt, stream: false },
         { timeout: timeoutMs },
       );
 
+      const elapsed = Date.now() - startTime;
+      const evalCount = response.data?.eval_count ?? '?';
+      this.logger.log(`✅ Respuesta recibida en ${elapsed}ms | ${evalCount} tokens`);
+
       const rawText: string = response.data?.response || '';
       const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error('No JSON found in Ollama response');
+      if (!jsonMatch) {
+        this.logger.warn(`⚠️ JSON inválido de Ollama, raw: ${rawText.slice(0, 100)}`);
+        throw new Error('No JSON found in Ollama response');
+      }
 
       const parsed = JSON.parse(jsonMatch[0]);
       this.consecutiveFailures = 0;
@@ -84,7 +94,7 @@ Responde ÚNICAMENTE con JSON válido sin texto adicional:
 
       if (this.consecutiveFailures >= this.CIRCUIT_THRESHOLD) {
         this.circuitOpen = true;
-        this.logger.error('Ollama circuit breaker OPEN');
+        this.logger.error(`🔴 Circuit breaker ABIERTO tras ${this.consecutiveFailures} fallos consecutivos`);
         this.notify('ALERTA Forja: Ollama no responde en worker');
       }
 

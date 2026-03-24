@@ -35,12 +35,14 @@ export class DocumentProcessor {
     dump: string;
   }>): Promise<void> {
     const { documentId, url, edu_score, token_count, dump } = job.data;
-    this.logger.log(`Processing document ${documentId} (attempt ${job.attemptsMade + 1})`);
+    this.logger.log(`📥 [Job ${job.id}] Recibido doc ${documentId} (url: ${url?.slice(0, 60)}) | attempt ${job.attemptsMade + 1}`);
 
     let articleId: number | null = null;
+    let step = 'init';
 
     try {
       // Create article in pending state if not exists
+      step = 'check-existing';
       const existing = await this.directusService.getArticleByDocumentId(documentId);
       if (existing) {
         articleId = existing.id;
@@ -62,17 +64,25 @@ export class DocumentProcessor {
       }
 
       // Get sections
+      step = 'read-sections';
+      this.logger.log(`📖 [Job ${job.id}] Leyendo secciones del doc ${documentId}...`);
       const sections = await this.directusService.getDocumentSections(documentId);
       const content = sections.map((s: any) => s.content).join('\n\n');
+      this.logger.log(`📖 [Job ${job.id}] ${sections.length} secciones encontradas (${content.length} chars totales)`);
 
       if (!content.trim()) {
         throw new Error('Document has no content in sections');
       }
 
       // Call Ollama
+      step = 'ollama';
+      this.logger.log(`🤖 [Job ${job.id}] Enviando a Ollama (${content.length} chars)...`);
       const result = await this.ollamaService.generate(content);
+      this.logger.log(`✅ [Job ${job.id}] Ollama respondió: "${result.title}" | topic: ${result.topic} | score: ${result.quality_score}`);
 
       // Update article to done and save full schema with source metadata
+      step = 'save-article';
+      this.logger.log(`💾 [Job ${job.id}] Guardando artículo en Directus...`);
       await this.directusService.updateArticleStatus(articleId, 'done');
       await this.articlesService.createArticle({
         documentId,
@@ -93,9 +103,9 @@ export class DocumentProcessor {
         modelUsed: this.configService.get<string>('ollama.model'),
       });
 
-      this.logger.log(`Document ${documentId} processed successfully`);
+      this.logger.log(`✅ [Job ${job.id}] Artículo guardado (articleId: ${articleId}, doc: ${documentId})`);
     } catch (error) {
-      this.logger.error(`Error processing document ${documentId}: ${error.message}`);
+      this.logger.error(`❌ [Job ${job.id}] Error en paso "${step}": ${error.message}`);
 
       if (articleId) {
         await this.directusService.updateArticleStatus(articleId, 'error', error.message);
@@ -111,7 +121,10 @@ export class DocumentProcessor {
 
   @OnQueueFailed()
   async onFailed(job: Job, error: Error): Promise<void> {
-    this.logger.error(`Job ${job.id} failed after ${job.attemptsMade} attempts: ${error.message}`);
+    if (job.attemptsMade < (job.opts.attempts || 3)) {
+      this.logger.warn(`🔄 [Job ${job.id}] Reintento ${job.attemptsMade}/${job.opts.attempts || 3} para doc ${job.data.documentId}`);
+    }
+    this.logger.error(`❌ [Job ${job.id}] Falló tras ${job.attemptsMade} intentos: ${error.message}`);
 
     if (job.attemptsMade >= (job.opts.attempts || 3)) {
       const dlqThreshold = this.configService.get<number>('alerts.dlqAlertThreshold');

@@ -81,7 +81,7 @@ export class QueueService implements OnModuleDestroy {
     const maxDocs = this.configService.get<number | null>('queue.maxDocs') ?? null;
 
     if (maxDocs !== null && this.totalEnqueued >= maxDocs) {
-      this.logger.log(`MAX_DOCS=${maxDocs} alcanzado, enqueuer detenido`);
+      this.logger.log(`🏁 MAX_DOCS=${maxDocs} alcanzado (total encolados: ${this.totalEnqueued})`);
       this.stopEnqueuer();
       return;
     }
@@ -91,6 +91,7 @@ export class QueueService implements OnModuleDestroy {
       this.documentQueue.getActiveCount(),
     ]);
     const current = waiting + active;
+    this.logger.log(`🔍 Revisando cola: ${waiting} waiting + ${active} active / ${maxSize} max`);
 
     if (current >= maxSize) {
       this.logger.log(`Queue full (${current}/${maxSize}), skipping refill`);
@@ -145,7 +146,7 @@ export class QueueService implements OnModuleDestroy {
     this.lastRefillAt = new Date();
 
     const newCurrent = current + enqueued;
-    this.logger.log(`Enqueued ${enqueued} docs (queue size: ${newCurrent}/${maxSize})`);
+    this.logger.log(`📤 Encolados ${enqueued} docs (offset: ${this.enqueuerOffset}, cola: ${newCurrent}/${maxSize}, total: ${this.totalEnqueued})`);
   }
 
   // ── Stats / utility ──────────────────────────────────────────────────────────
