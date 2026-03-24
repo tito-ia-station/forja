@@ -10,6 +10,7 @@ export class QueueService implements OnModuleDestroy {
 
   private enqueuerRunning = false;
   private enqueuerOffset = 0;
+  private totalEnqueued = 0;
   private lastRefillAt: Date | null = null;
   private intervalHandle: NodeJS.Timeout | null = null;
 
@@ -69,6 +70,13 @@ export class QueueService implements OnModuleDestroy {
     const refillSize = this.configService.get<number>('queue.refillSize') ?? 100;
     const minScore = this.configService.get<number>('worker.minEduScore');
     const batchSize = this.configService.get<number>('worker.batchSize') ?? 50;
+    const maxDocs = this.configService.get<number | null>('queue.maxDocs') ?? null;
+
+    if (maxDocs !== null && this.totalEnqueued >= maxDocs) {
+      this.logger.log(`MAX_DOCS=${maxDocs} alcanzado, enqueuer detenido`);
+      this.stopEnqueuer();
+      return;
+    }
 
     const [waiting, active] = await Promise.all([
       this.documentQueue.getWaitingCount(),
@@ -81,7 +89,10 @@ export class QueueService implements OnModuleDestroy {
       return;
     }
 
-    const canAdd = Math.min(refillSize, maxSize - current);
+    let canAdd = Math.min(refillSize, maxSize - current);
+    if (maxDocs !== null) {
+      canAdd = Math.min(canAdd, maxDocs - this.totalEnqueued);
+    }
     let enqueued = 0;
     let localOffset = this.enqueuerOffset;
 
@@ -113,6 +124,7 @@ export class QueueService implements OnModuleDestroy {
           },
         );
         enqueued++;
+        this.totalEnqueued++;
         localOffset++;
       }
 

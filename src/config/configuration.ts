@@ -27,5 +27,6 @@ export default () => ({
     maxSize: parseInt(process.env.QUEUE_MAX_SIZE || '500', 10),
     refillSize: parseInt(process.env.QUEUE_REFILL_SIZE || '100', 10),
     checkIntervalMs: parseInt(process.env.QUEUE_CHECK_INTERVAL_MS || '10000', 10),
+    maxDocs: process.env.MAX_DOCS ? parseInt(process.env.MAX_DOCS) : null,
   },
 });
