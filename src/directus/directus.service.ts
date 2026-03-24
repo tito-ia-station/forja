@@ -44,8 +44,8 @@ export class DirectusService {
       const sections = await this.client.request(
         (readItems as any)('fw_sections', {
           filter: { document_id: { _eq: documentId } },
-          sort: ['sort'],
-          fields: ['id', 'content', 'sort'],
+          sort: ['section_index'],
+          fields: ['id', 'content', 'section_index', 'section_title'],
         }),
       );
       return sections;
