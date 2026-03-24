@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, OnApplicationBootstrap, Logger } from '@nestjs/common';
 import { BullModule } from '@nestjs/bull';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { QueueService } from './queue.service';
@@ -24,4 +24,17 @@ import { DirectusModule } from '../directus/directus.module';
   controllers: [QueueController],
   exports: [QueueService, BullModule],
 })
-export class QueueModule {}
+export class QueueModule implements OnApplicationBootstrap {
+  private readonly logger = new Logger(QueueModule.name);
+
+  constructor(private readonly queueService: QueueService) {}
+
+  onApplicationBootstrap() {
+    if (process.env.WORKER_ROLE === 'enqueuer') {
+      this.logger.log('WORKER_ROLE=enqueuer detectado, arrancando enqueuer automáticamente...');
+      this.queueService.startEnqueuer();
+    } else {
+      this.logger.log(`WORKER_ROLE=${process.env.WORKER_ROLE || 'worker'} — modo worker activo`);
+    }
+  }
+}
