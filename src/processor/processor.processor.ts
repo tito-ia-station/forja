@@ -63,12 +63,11 @@ export class DocumentProcessor {
         articleId = created.id;
       }
 
-      // Get sections
-      step = 'read-sections';
-      this.logger.log(`📖 [Job ${job.id}] Leyendo secciones del doc ${documentId}...`);
-      const sections = await this.directusService.getDocumentSections(documentId);
-      const content = sections.map((s: any) => s.content).join('\n\n');
-      this.logger.log(`📖 [Job ${job.id}] ${sections.length} secciones encontradas (${content.length} chars totales)`);
+      // Get content
+      step = 'read-content';
+      this.logger.log(`📖 [Job ${job.id}] Obteniendo contenido del doc ${documentId}...`);
+      const content = await this.directusService.getDocumentContent(documentId);
+      this.logger.log(`📖 [Job ${job.id}] Contenido: ${content.length} chars`);
 
       if (!content.trim()) {
         throw new Error('Document has no content in sections');

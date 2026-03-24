@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createDirectus, rest, staticToken, readItems, createItem, updateItem } from '@directus/sdk';
+import { createDirectus, rest, staticToken, readItems, readItem, createItem, updateItem } from '@directus/sdk';
 
 type DirectusAnyClient = any;
 
@@ -25,11 +25,12 @@ export class DirectusService {
   async getDocuments(offset: number, limit: number, minScore: number): Promise<any[]> {
     try {
       const items = await this.client.request(
-        (readItems as any)('fw_documents', {
+        (readItems as any)('fw_content', {
+          fields: ['id', 'url', 'edu_score', 'token_count', 'dump', 'source', 'char_count'],
           filter: { edu_score: { _gte: minScore } },
           limit,
           offset,
-          fields: ['id', 'url', 'edu_score', 'token_count', 'dump', 'title'],
+          sort: ['-edu_score'],
         }),
       );
       return items;
@@ -39,18 +40,16 @@ export class DirectusService {
     }
   }
 
-  async getDocumentSections(documentId: number): Promise<any[]> {
+  async getDocumentContent(documentId: number): Promise<string> {
     try {
-      const sections = await this.client.request(
-        (readItems as any)('fw_sections', {
-          filter: { document_id: { _eq: documentId } },
-          sort: ['section_index'],
-          fields: ['id', 'content', 'section_index', 'section_title'],
+      const result = await this.client.request(
+        (readItem as any)('fw_content', documentId, {
+          fields: ['full_text'],
         }),
       );
-      return sections;
+      return result?.full_text || '';
     } catch (error) {
-      this.logger.error(`Error fetching sections for doc ${documentId}: ${error.message}`);
+      this.logger.error(`Error fetching content for doc ${documentId}: ${error.message}`);
       throw error;
     }
   }
