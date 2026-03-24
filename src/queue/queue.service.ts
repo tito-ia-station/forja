@@ -36,8 +36,16 @@ export class QueueService implements OnModuleDestroy {
     this.enqueuerRunning = true;
     this.logger.log(`Enqueuer started (interval=${intervalMs}ms)`);
 
-    void this.refillIfNeeded();
-    this.intervalHandle = setInterval(() => void this.refillIfNeeded(), intervalMs);
+    this.refillIfNeeded().catch((err) =>
+      this.logger.error(`Error in initial refill: ${err.message}`),
+    );
+    this.intervalHandle = setInterval(async () => {
+      try {
+        await this.refillIfNeeded();
+      } catch (err) {
+        this.logger.error(`Error in refill cycle: ${err.message}`);
+      }
+    }, intervalMs);
 
     return { message: 'Enqueuer started' };
   }

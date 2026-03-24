@@ -14,6 +14,8 @@ export class DirectusService {
   constructor(private configService: ConfigService) {
     const url = this.configService.get<string>('directus.url') as string;
     const token = this.configService.get<string>('directus.token') as string;
+    // NOTE: token must be the static API token of the service user (e.g. fw-api-2026-FXST),
+    // NOT a personal access token. Set via DIRECTUS_TOKEN env var.
     // Build the client with schema omitted (untyped) to satisfy TS
     this.client = (createDirectus as any)(url)
       .with(staticToken(token))
